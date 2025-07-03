@@ -82,6 +82,13 @@ if ( ! class_exists( 'Custom_Advanced_Product_Fields_Pro' ) ) {
 		public $order = null;
 
 		/**
+		 * Settings Page instance.
+		 *
+		 * @var CAPFP_Settings_Page
+		 */
+		public $settings_page = null;
+
+		/**
 		 * The single instance of the class.
 		 *
 		 * @var Custom_Advanced_Product_Fields_Pro
@@ -117,6 +124,9 @@ if ( ! class_exists( 'Custom_Advanced_Product_Fields_Pro' ) ) {
 				$this->frontend = new CAPFP_Frontend();
 				$this->cart     = new CAPFP_Cart();
 				$this->order    = new CAPFP_Order();
+				if ( is_admin() ) {
+					$this->settings_page = new CAPFP_Settings_Page();
+				}
 			} else {
 				add_action( 'admin_notices', array( $this, 'woocommerce_not_activated_notice' ) );
 			}

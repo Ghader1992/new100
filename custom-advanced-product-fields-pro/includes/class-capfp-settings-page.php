@@ -476,7 +476,4 @@ if ( ! class_exists( 'CAPFP_Settings_Page' ) ) {
 	}
 }
 
-// Instantiate the settings page class if we are in admin.
-if ( is_admin() ) {
-	new CAPFP_Settings_Page();
-}
+// The main plugin class will handle instantiation.
