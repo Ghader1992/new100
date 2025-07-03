@@ -147,7 +147,7 @@ if ( ! class_exists( 'CAPFP_Frontend' ) ) {
             if ( empty( $product_fields_config ) || ! is_array( $product_fields_config ) ) {
                 return $passed;
             }
-
+            
             $submitted_values_map = array();
             if (isset($_POST['capfp_field']) && is_array($_POST['capfp_field'])) {
                 foreach (wc_clean(wp_unslash($_POST['capfp_field'])) as $unique_key => $value) {
@@ -165,7 +165,7 @@ if ( ! class_exists( 'CAPFP_Frontend' ) ) {
                 if ( ! $is_conditionally_visible ) {
                     continue;
                 }
-
+                
                 if ( $is_field_required && ( is_null( $submitted_value_for_current_field ) || $submitted_value_for_current_field === '' ) ) {
                     wc_add_notice( sprintf( __( '%s is a required field.', 'capfp' ), esc_html( $field_config['label'] ) ), 'error' );
                     $passed = false;
@@ -202,7 +202,7 @@ if ( ! class_exists( 'CAPFP_Frontend' ) ) {
                                         break;
                                     }
                                 }
-                            } elseif ($field_config['type'] === 'checkbox' && $submitted_value_for_current_field === "yes" && empty($field_config['options'])) {
+                            } elseif ($field_config['type'] === 'checkbox' && $submitted_value_for_current_field === "yes" && empty($field_config['options'])) { 
                                 $valid_option_found = true;
                             }
                             if ( ! $valid_option_found ) {
@@ -224,9 +224,7 @@ if ( ! class_exists( 'CAPFP_Frontend' ) ) {
          * @param array $all_product_fields
          * @return bool
          */
-        public function is_field_conditionally_visible( $field_config, $submitted_values_map, $all_product_fields ) {
-            // Note: This public visibility is a temporary change to allow CAPFP_Cart to call it.
-            // Consider refactoring to a shared helper or a different approach for inter-class dependencies.
+        private function is_field_conditionally_visible( $field_config, $submitted_values_map, $all_product_fields ) {
             if ( ! isset( $field_config['conditions'] ) || empty( $field_config['conditions'] ) ) {
                 return true;
             }
