@@ -288,7 +288,7 @@ if ( ! class_exists( 'CAPFP_Admin' ) ) {
 			foreach ( $conditions_data as $rule ) {
 				if ( ! empty( $rule['field'] ) && ! empty( $rule['operator'] ) ) { // Value can sometimes be empty intentionally
 					$sanitized_rule = array(
-						'field'    => sanitize_text_field( $rule['field'] ), // This is a unique_key
+						'field'    => sanitize_text_field( $rule['field'] ),
 						'operator' => sanitize_text_field( $rule['operator'] ),
 						'value'    => sanitize_text_field( $rule['value'] ),
 					);
