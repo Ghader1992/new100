@@ -49,9 +49,6 @@ if ( ! class_exists( 'CAPFP_Admin' ) ) {
 			global $post, $thepostid, $product_object;
 			$product_id = $thepostid; // $post->ID might not be reliable here.
 
-			global $post, $thepostid, $product_object;
-			$product_id = $thepostid;
-
 			$all_global_field_groups = get_option( 'capfp_field_groups', array() );
 			// This meta will store the actual configuration for the product, including conditional logic.
 			// It's an array of field configurations, not just group IDs.

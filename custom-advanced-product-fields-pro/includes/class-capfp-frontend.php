@@ -147,12 +147,6 @@ if ( ! class_exists( 'CAPFP_Frontend' ) ) {
 
 			$submitted_fields_data = isset( $_POST['capfp_field'] ) ? wc_clean( wp_unslash( $_POST['capfp_field'] ) ) : array();
 
-			// Get the configuration of fields that should be on the product
-			$selected_group_ids = get_post_meta( $product_id, '_capfp_selected_field_group_ids', true );
-			if ( empty( $selected_group_ids ) || ! is_array( $selected_group_ids ) ) {
-				return $passed; // No custom fields configured for this product
-			}
-
 			// Get the product's specific field configuration, which includes conditions
 			$product_fields_config = get_post_meta( $product_id, '_capfp_product_fields_config', true );
 
@@ -190,18 +184,18 @@ if ( ! class_exists( 'CAPFP_Frontend' ) ) {
 						}
 
 						// --- Type Specific Validation ---
-						if ( ! is_null( $submitted_value ) && $submitted_value !== '' ) {
+						if ( ! is_null( $submitted_value_for_current_field ) && $submitted_value_for_current_field !== '' ) {
 							switch ( $field_config['type'] ) {
 								case 'text':
 									// Already sanitized by wc_clean.
 									break;
 								case 'number':
-									if ( ! is_numeric( $submitted_value ) ) {
+									if ( ! is_numeric( $submitted_value_for_current_field ) ) {
 										// translators: %s: Field label
 										wc_add_notice( sprintf( __( '%s must be a number.', 'capfp' ), esc_html( $field_config['label'] ) ), 'error' );
 										$passed = false;
 									} else {
-										$num_val = floatval($submitted_value);
+										$num_val = floatval($submitted_value_for_current_field);
 										if ( isset( $field_config['min'] ) && $field_config['min'] !== '' && $num_val < floatval($field_config['min']) ) {
 											// translators: %1$s: Field label, %2$s: Minimum value.
 											wc_add_notice( sprintf( __( '%1$s cannot be less than %2$s.', 'capfp' ), esc_html( $field_config['label'] ), $field_config['min'] ), 'error' );
@@ -219,12 +213,12 @@ if ( ! class_exists( 'CAPFP_Frontend' ) ) {
 									$valid_option_found = false;
 									if ( ! empty( $field_config['options'] ) && is_array( $field_config['options'] ) ) {
 										foreach ( $field_config['options'] as $option_config ) {
-											if ( isset( $option_config['value'] ) && $option_config['value'] === $submitted_value ) {
+											if ( isset( $option_config['value'] ) && $option_config['value'] === $submitted_value_for_current_field ) {
 												$valid_option_found = true;
 												break;
 											}
 										}
-									} elseif ($field_config['type'] === 'checkbox' && $submitted_value === "yes" && empty($field_config['options'])) {
+									} elseif ($field_config['type'] === 'checkbox' && $submitted_value_for_current_field === "yes" && empty($field_config['options'])) {
                                         // Fallback for a basic checkbox if no options were defined but "yes" was submitted
                                         $valid_option_found = true;
                                     }
