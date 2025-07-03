@@ -140,6 +140,9 @@ if ( ! class_exists( 'Custom_Advanced_Product_Fields_Pro' ) ) {
 			require_once CAPFP_PLUGIN_PATH . 'includes/class-capfp-frontend.php';
 			require_once CAPFP_PLUGIN_PATH . 'includes/class-capfp-cart.php';
 			require_once CAPFP_PLUGIN_PATH . 'includes/class-capfp-order.php';
+			if ( is_admin() ) {
+				require_once CAPFP_PLUGIN_PATH . 'includes/class-capfp-settings-page.php';
+			}
 		}
 
 		/**

@@ -36,9 +36,16 @@ if ( ! class_exists( 'CAPFP_Order' ) ) {
 		 */
 		public function add_custom_fields_to_order_items( $item, $cart_item_key, $values, $order ) {
 			if ( isset( $values['capfp_custom_fields'] ) && is_array( $values['capfp_custom_fields'] ) ) {
-				foreach ( $values['capfp_custom_fields'] as $field_key => $field_data ) {
-                    // Use the pre-formatted display string for meta value for clarity in order
-					$item->add_meta_data( $field_data['label'], $field_data['display'], true );
+				foreach ( $values['capfp_custom_fields'] as $field_unique_id => $field_data ) {
+					$display_text_for_order = $field_data['display'];
+					if ( $field_data['price'] > 0 ) {
+						$display_text_for_order .= ' (' . wc_price( $field_data['price'] ) . ')';
+					}
+					// Storing with unique ID in meta key can be useful for later retrieval if needed,
+                    // but for display, the label is better.
+                    // Meta key: $field_data['label'] (Original Field Label)
+                    // Meta value: $display_text_for_order
+					$item->add_meta_data( $field_data['label'], $display_text_for_order, true );
 				}
 			}
 		}
