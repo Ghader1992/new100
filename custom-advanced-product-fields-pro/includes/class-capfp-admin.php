@@ -352,4 +352,3 @@ if ( ! class_exists( 'CAPFP_Admin' ) ) {
 
 		}
 	}
-}
