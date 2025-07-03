@@ -39,42 +39,42 @@ if ( ! class_exists( 'CAPFP_Cart' ) ) {
 			if ( isset( $_POST['capfp_field'] ) && is_array( $_POST['capfp_field'] ) ) {
 				$submitted_fields = wc_clean( wp_unslash( $_POST['capfp_field'] ) );
 
-				// We need the full configuration to get labels and prices
-				$all_field_groups_config = get_option( 'capfp_field_groups', array() );
-				$product_group_ids = get_post_meta( $product_id, '_capfp_selected_field_group_ids', true );
+				// Get the product's specific field configuration
+				$product_fields_config_all = get_post_meta( $product_id, '_capfp_product_fields_config', true );
 
-				if ( !empty($product_group_ids) && is_array($product_group_ids) && !empty($all_field_groups_config) ) {
+				if ( !empty( $product_fields_config_all ) && is_array( $product_fields_config_all ) ) {
+					// Create a map of product's fields by their unique_key for easier lookup
+					$product_fields_map = array();
+					foreach($product_fields_config_all as $pfc) {
+						if(isset($pfc['unique_key'])) {
+							$product_fields_map[$pfc['unique_key']] = $pfc;
+						}
+					}
 
 					foreach ( $submitted_fields as $unique_field_id => $submitted_value ) {
-						// $unique_field_id is "GROUPID_FIELDID"
-						// Find the corresponding field configuration
-						$field_config = null;
-						$group_id_for_field = '';
-						$field_id_for_field = '';
+						// Check if this submitted field is actually part of the product's configuration
+						if ( isset( $product_fields_map[ $unique_field_id ] ) ) {
+							$field_config = $product_fields_map[ $unique_field_id ]; // This is the config synced to the product
 
-						// Extract group and field ID from unique_field_id
-                        // This assumes unique_field_id format is 'groupid-fieldid' as generated in settings sanitization
-                        // and then used in frontend display 'GROUPID_FIELDID' (hyphen vs underscore)
-                        // Let's standardize on the sanitized ID format from options.
-                        // The frontend uses $group_config['id'] . '_' . $field_config['id']
-
-                        // Find which group this field belongs to
-                        foreach ($all_field_groups_config as $group_cfg) {
-                            if (isset($group_cfg['id']) && isset($group_cfg['fields']) && is_array($group_cfg['fields'])) {
-                                foreach ($group_cfg['fields'] as $f_cfg) {
-                                    if (isset($f_cfg['id']) && ($group_cfg['id'] . '_' . $f_cfg['id']) === $unique_field_id) {
-                                        $field_config = $f_cfg;
-                                        break 2; // Found field, break both loops
-                                    }
-                                }
-                            }
-                        }
-
-						if ( $field_config ) {
-							$value_to_store = '';
+							$value_to_store = null; // Initialize to null
 							$display_value = '';
 							$price = 0;
 							$label = $field_config['label'];
+
+							// Server-side validation for visibility (important if JS is bypassed or fails)
+							// This uses the full POST data to check conditions, not just $submitted_fields which is cleaned.
+							$is_visible_on_server = true; // Assume visible unless conditions say otherwise
+							if (class_exists('CAPFP_Frontend')) { // Check if class exists to avoid error if called in a weird context
+								$frontend_checker = new CAPFP_Frontend(); // Temporary instance for visibility check
+								// We need all submitted values for the visibility check, not just the current one.
+								$all_submitted_values_for_check = isset($_POST['capfp_field']) ? wc_clean(wp_unslash($_POST['capfp_field'])) : array();
+								$is_visible_on_server = $frontend_checker->is_field_conditionally_visible( $field_config, $all_submitted_values_for_check, $product_fields_config_all );
+							}
+
+							if (!$is_visible_on_server) {
+								continue; // Don't process or add data for fields that should be hidden
+							}
+
 
 							switch ( $field_config['type'] ) {
 								case 'text':
@@ -82,19 +82,38 @@ if ( ! class_exists( 'CAPFP_Cart' ) ) {
 									$display_value = $value_to_store;
 									break;
                                 case 'number':
-                                    $value_to_store = is_numeric( $submitted_value ) ? floatval( $submitted_value ) : sanitize_text_field( $submitted_value );
-                                    $display_value = (string) $value_to_store; // Display as string
-                                    // Price for number field itself is not added here, only if options have prices.
-                                    // If number field was to influence price directly (e.g. price per unit), that's different logic.
+                                    // Ensure it's numeric after sanitization and respect validation rules
+                                    if (is_numeric($submitted_value)) {
+                                        $num_val = floatval($submitted_value);
+                                        $min_val = isset($field_config['min']) && $field_config['min'] !== '' ? floatval($field_config['min']) : null;
+                                        $max_val = isset($field_config['max']) && $field_config['max'] !== '' ? floatval($field_config['max']) : null;
+
+                                        if ( ($min_val === null || $num_val >= $min_val) && ($max_val === null || $num_val <= $max_val) ) {
+                                            $value_to_store = $num_val;
+                                            $display_value = (string) $num_val;
+                                        } else {
+                                            // Value was submitted but invalid (e.g. out of range), skip or handle as error?
+                                            // For add_cart_item_data, we usually assume validation passed.
+                                            // If it's here, it means validation might have been bypassed or needs re-check.
+                                            // For now, we'll only store valid values.
+                                            $value_to_store = null;
+                                        }
+                                    } else if ($submitted_value === '' && !(isset($field_config['required']) && $field_config['required'] === 'yes')) {
+										// Allow empty non-required number field
+										$value_to_store = '';
+										$display_value = '';
+									}
                                     break;
 								case 'checkbox': // Single checkbox representing the field
 								case 'select':
+									// The $field_config['options'] here comes from the product meta,
+									// which was synced from the global settings.
 									if ( !empty($field_config['options']) && is_array($field_config['options']) ) {
                                         foreach($field_config['options'] as $option_cfg) {
                                             if (isset($option_cfg['value']) && $option_cfg['value'] === $submitted_value) {
                                                 $value_to_store = $option_cfg['value'];
                                                 $display_value = $option_cfg['label'];
-                                                $price = isset( $option_cfg['price'] ) ? floatval( $option_cfg['price'] ) : 0;
+                                                $price = isset( $option_cfg['price'] ) && $option_cfg['price'] !== '' ? floatval( $option_cfg['price'] ) : 0;
                                                 break;
                                             }
                                         }
@@ -102,16 +121,21 @@ if ( ! class_exists( 'CAPFP_Cart' ) ) {
 									break;
 							}
 
-							// Ensure value_to_store is not null before saving, but allow "0" or empty string if that's the actual valid input
-							if ( $value_to_store !== null && ($value_to_store !== '' || $field_config['type'] === 'text' || $field_config['type'] === 'number') ) {
-								$processed_custom_fields_data[ $unique_field_id ] = array(
-									'label'   => $label,
-									'value'   => $value_to_store, // Raw value
-									'display' => $display_value,  // User-friendly display value
-									'price'   => $price,
-                                    'field_id'=> $field_config['id'], // Original field ID within its group
-                                    'group_id'=> $group_cfg['id'] // Group ID
-								);
+							// Ensure value_to_store is not null OR it's an intentionally empty allowed string (for non-required text/number)
+							if ( $value_to_store !== null ) {
+								if ($value_to_store === '' && isset($field_config['required']) && $field_config['required'] === 'yes' && $is_visible_on_server) {
+									// This case should ideally be caught by 'woocommerce_add_to_cart_validation'
+									// but as a safeguard, don't add empty required fields.
+								} else {
+									$processed_custom_fields_data[ $unique_field_id ] = array(
+										'label'   => $label,
+										'value'   => $value_to_store,
+										'display' => $display_value,
+										'price'   => $price,
+	                                    'field_id'=> $field_config['original_field_id'],
+	                                    'group_id'=> $field_config['original_group_id']
+									);
+								}
 							}
 						}
 					}

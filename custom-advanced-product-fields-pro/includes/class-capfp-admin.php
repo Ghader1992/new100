@@ -309,8 +309,9 @@ if ( ! class_exists( 'CAPFP_Admin' ) ) {
                     <option value=""><?php esc_html_e('-- Select Field --', 'capfp'); ?></option>
                     <?php if(!empty($product_fields_config_saved)): ?>
                         <?php foreach($product_fields_config_saved as $field_cfg): ?>
-                            <?php if ('{{ data.current_field_key }}' === '<?php echo esc_js($field_cfg['unique_key']); ?>') continue; ?>
+                    <% if (data.current_field_key !== '<?php echo esc_js($field_cfg['unique_key']); ?>') { %>
                             <option value="<?php echo esc_attr($field_cfg['unique_key']); ?>"><?php echo esc_html($field_cfg['label']); ?></option>
+                    <% } %>
                         <?php endforeach; ?>
                     <?php endif; ?>
                 </select>
