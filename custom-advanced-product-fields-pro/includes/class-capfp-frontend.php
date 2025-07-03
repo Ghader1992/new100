@@ -25,6 +25,22 @@ if ( ! class_exists( 'CAPFP_Frontend' ) ) {
             add_action( 'woocommerce_before_add_to_cart_button', array( $this, 'display_custom_fields' ), 10 );
             add_filter( 'woocommerce_add_to_cart_validation', array( $this, 'validate_custom_fields' ), 10, 3 );
             add_filter( 'woocommerce_loop_add_to_cart_link', array( $this, 'replace_loop_add_to_cart_button' ), 10, 2 );
+            add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_frontend_styles' ) );
+        }
+
+        /**
+         * Enqueue frontend styles.
+         */
+        public function enqueue_frontend_styles() {
+            // Only enqueue on single product pages
+            if ( is_product() ) {
+                wp_enqueue_style(
+                    'capfp-frontend-styles', // Handle
+                    CAPFP_PLUGIN_URL . 'assets/css/capfp-frontend.css', // Path to CSS file
+                    array(), // Dependencies
+                    CAPFP_VERSION // Version
+                );
+            }
         }
 
         /**

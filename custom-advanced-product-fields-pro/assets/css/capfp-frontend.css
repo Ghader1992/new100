@@ -1,0 +1,76 @@
+/* Custom Advanced Product Fields PRO - Frontend Styles */
+
+/* Wrapper for all custom fields on the product page */
+.capfp-custom-fields-wrapper {
+    margin-top: 1em;
+    margin-bottom: 1.5em;
+    padding: 15px 20px;
+    border: 1px solid #e0e0e0;
+    border-radius: 5px;
+    background-color: #f9f9f9;
+}
+
+/* Container for each individual field item (label + input) */
+.capfp-field-item-container.form-row { /* Also leverages WooCommerce's form-row for spacing */
+    margin-bottom: 12px; /* Spacing between fields */
+    padding-bottom: 12px;
+    border-bottom: 1px dotted #eaeaea;
+}
+
+.capfp-field-item-container:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+/* Style for the field labels */
+.capfp-field-item-container label {
+    display: block; /* Make label take full width or appear on its own line */
+    font-weight: bold;
+    margin-bottom: 6px;
+    padding: 0; /* Reset padding if inherited from .form-row label */
+}
+
+/* General styling for our inputs to ensure consistency */
+.capfp-field-item-container .capfp-input,
+.capfp-field-item-container .capfp-select {
+    width: 100%;
+    max-width: 450px; /* Adjust max-width as desired, or remove for full width */
+    box-sizing: border-box; /* Important for width calculations including padding/border */
+    padding: 8px 10px;
+    border-radius: 3px;
+    border: 1px solid #ccc;
+}
+
+/* Specific styling for checkboxes to not be full width */
+.capfp-field-item-container .input-checkbox.capfp-input {
+    width: auto;
+    margin-right: 8px;
+    vertical-align: middle;
+    position: relative;
+    top: -1px; /* Slight adjustment for better alignment with label text */
+}
+
+/* Label for the checkbox option text (if displayed next to the checkbox) */
+.capfp-field-item-container .checkbox-label {
+    font-weight: normal; /* Typically, the main field label is bold */
+    display: inline;
+    vertical-align: middle;
+    margin-left: 0; /* Reset margin if any from general label styles */
+}
+
+/* Styling for the additional price suffix */
+.capfp-option-price {
+    font-style: italic;
+    color: #555555;
+    margin-left: 5px;
+    font-size: 0.9em;
+}
+
+/* Ensure required asterisk is clearly visible and standard */
+.capfp-field-item-container label .required {
+    color: red;
+    font-weight: bold;
+    margin-left: 3px;
+    text-decoration: none; /* Remove underline if theme adds it */
+}
