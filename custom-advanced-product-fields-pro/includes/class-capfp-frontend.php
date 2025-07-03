@@ -224,7 +224,7 @@ if ( ! class_exists( 'CAPFP_Frontend' ) ) {
          * @param array $all_product_fields
          * @return bool
          */
-        private function is_field_conditionally_visible( $field_config, $submitted_values_map, $all_product_fields ) {
+        public function is_field_conditionally_visible( $field_config, $submitted_values_map, $all_product_fields ) {
             if ( ! isset( $field_config['conditions'] ) || empty( $field_config['conditions'] ) ) {
                 return true;
             }
