@@ -19,7 +19,6 @@ if ( ! class_exists( 'CAPFP_Cart' ) ) {
 		 * Constructor.
 		 */
 		public function __construct() {
-			// Cart hooks and filters will go here.
 			add_filter( 'woocommerce_add_cart_item_data', array( $this, 'add_custom_fields_to_cart_item' ), 10, 3 );
 			add_filter( 'woocommerce_get_item_data', array( $this, 'display_custom_fields_in_cart' ), 10, 2 );
 			add_action( 'woocommerce_before_calculate_totals', array( $this, 'calculate_custom_fields_prices' ), 20 );
@@ -39,11 +38,9 @@ if ( ! class_exists( 'CAPFP_Cart' ) ) {
 			if ( isset( $_POST['capfp_field'] ) && is_array( $_POST['capfp_field'] ) ) {
 				$submitted_fields = wc_clean( wp_unslash( $_POST['capfp_field'] ) );
 
-				// Get the product's specific field configuration
 				$product_fields_config_all = get_post_meta( $product_id, '_capfp_product_fields_config', true );
 
 				if ( !empty( $product_fields_config_all ) && is_array( $product_fields_config_all ) ) {
-					// Create a map of product's fields by their unique_key for easier lookup
 					$product_fields_map = array();
 					foreach($product_fields_config_all as $pfc) {
 						if(isset($pfc['unique_key'])) {
@@ -52,29 +49,26 @@ if ( ! class_exists( 'CAPFP_Cart' ) ) {
 					}
 
 					foreach ( $submitted_fields as $unique_field_id => $submitted_value ) {
-						// Check if this submitted field is actually part of the product's configuration
 						if ( isset( $product_fields_map[ $unique_field_id ] ) ) {
-							$field_config = $product_fields_map[ $unique_field_id ]; // This is the config synced to the product
+							$field_config = $product_fields_map[ $unique_field_id ];
 
-							$value_to_store = null; // Initialize to null
+							$value_to_store = null;
 							$display_value = '';
 							$price = 0;
 							$label = $field_config['label'];
 
-							// Server-side validation for visibility (important if JS is bypassed or fails)
-							// This uses the full POST data to check conditions, not just $submitted_fields which is cleaned.
-							$is_visible_on_server = true; // Assume visible unless conditions say otherwise
-							if (class_exists('CAPFP_Frontend')) { // Check if class exists to avoid error if called in a weird context
-								$frontend_checker = new CAPFP_Frontend(); // Temporary instance for visibility check
-								// We need all submitted values for the visibility check, not just the current one.
+							$is_visible_on_server = true;
+							if (class_exists('CAPFP_Frontend')) {
+								$frontend_checker = new CAPFP_Frontend();
 								$all_submitted_values_for_check = isset($_POST['capfp_field']) ? wc_clean(wp_unslash($_POST['capfp_field'])) : array();
-								$is_visible_on_server = $frontend_checker->is_field_conditionally_visible( $field_config, $all_submitted_values_for_check, $product_fields_config_all );
+								if(method_exists($frontend_checker, 'is_field_conditionally_visible')){
+									$is_visible_on_server = $frontend_checker->is_field_conditionally_visible( $field_config, $all_submitted_values_for_check, $product_fields_config_all );
+								}
 							}
 
 							if (!$is_visible_on_server) {
-								continue; // Don't process or add data for fields that should be hidden
+								continue;
 							}
-
 
 							switch ( $field_config['type'] ) {
 								case 'text':
@@ -82,32 +76,23 @@ if ( ! class_exists( 'CAPFP_Cart' ) ) {
 									$display_value = $value_to_store;
 									break;
                                 case 'number':
-                                    // Ensure it's numeric after sanitization and respect validation rules
                                     if (is_numeric($submitted_value)) {
                                         $num_val = floatval($submitted_value);
                                         $min_val = isset($field_config['min']) && $field_config['min'] !== '' ? floatval($field_config['min']) : null;
                                         $max_val = isset($field_config['max']) && $field_config['max'] !== '' ? floatval($field_config['max']) : null;
-
                                         if ( ($min_val === null || $num_val >= $min_val) && ($max_val === null || $num_val <= $max_val) ) {
                                             $value_to_store = $num_val;
                                             $display_value = (string) $num_val;
                                         } else {
-                                            // Value was submitted but invalid (e.g. out of range), skip or handle as error?
-                                            // For add_cart_item_data, we usually assume validation passed.
-                                            // If it's here, it means validation might have been bypassed or needs re-check.
-                                            // For now, we'll only store valid values.
                                             $value_to_store = null;
                                         }
                                     } else if ($submitted_value === '' && !(isset($field_config['required']) && $field_config['required'] === 'yes')) {
-										// Allow empty non-required number field
 										$value_to_store = '';
 										$display_value = '';
 									}
                                     break;
-								case 'checkbox': // Single checkbox representing the field
+								case 'checkbox':
 								case 'select':
-									// The $field_config['options'] here comes from the product meta,
-									// which was synced from the global settings.
 									if ( !empty($field_config['options']) && is_array($field_config['options']) ) {
                                         foreach($field_config['options'] as $option_cfg) {
                                             if (isset($option_cfg['value']) && $option_cfg['value'] === $submitted_value) {
@@ -121,11 +106,9 @@ if ( ! class_exists( 'CAPFP_Cart' ) ) {
 									break;
 							}
 
-							// Ensure value_to_store is not null OR it's an intentionally empty allowed string (for non-required text/number)
 							if ( $value_to_store !== null ) {
 								if ($value_to_store === '' && isset($field_config['required']) && $field_config['required'] === 'yes' && $is_visible_on_server) {
-									// This case should ideally be caught by 'woocommerce_add_to_cart_validation'
-									// but as a safeguard, don't add empty required fields.
+									// Skip empty required fields
 								} else {
 									$processed_custom_fields_data[ $unique_field_id ] = array(
 										'label'   => $label,
@@ -145,6 +128,13 @@ if ( ! class_exists( 'CAPFP_Cart' ) ) {
 			if ( ! empty( $processed_custom_fields_data ) ) {
 				$cart_item_data['capfp_custom_fields'] = $processed_custom_fields_data;
 			}
+
+			$_product_id_for_price = $variation_id ? $variation_id : $product_id;
+			$_product_for_price = wc_get_product($_product_id_for_price);
+			if ($_product_for_price) {
+				$cart_item_data['capfp_original_base_price'] = floatval($_product_for_price->get_price('edit'));
+			}
+
 			return $cart_item_data;
 		}
 
@@ -156,17 +146,30 @@ if ( ! class_exists( 'CAPFP_Cart' ) ) {
 		 * @return array Modified item data.
 		 */
 		public function display_custom_fields_in_cart( $item_data, $cart_item ) {
+			static $processed_cart_item_keys = array();
+
+			if ( isset( $cart_item['key'] ) && isset( $processed_cart_item_keys[ $cart_item['key'] ] ) ) {
+				return $item_data;
+			}
+
 			if ( isset( $cart_item['capfp_custom_fields'] ) && is_array( $cart_item['capfp_custom_fields'] ) ) {
+				$meta_added_for_this_item_in_this_call = false;
 				foreach ( $cart_item['capfp_custom_fields'] as $field_unique_id => $field_data ) {
 					$display_text = $field_data['display'];
-					if ( $field_data['price'] > 0 ) {
+					if ( isset($field_data['price']) && $field_data['price'] > 0 ) {
 						$display_text .= ' (' . wc_price( $field_data['price'] ) . ')';
 					}
+
 					$item_data[] = array(
 						'key'     => $field_data['label'],
-						'value'   => $field_data['value'], // Raw value stored
+						'value'   => $field_data['value'],
 						'display' => $display_text,
 					);
+					$meta_added_for_this_item_in_this_call = true;
+				}
+
+				if ( $meta_added_for_this_item_in_this_call && isset( $cart_item['key'] ) ) {
+					$processed_cart_item_keys[ $cart_item['key'] ] = true;
 				}
 			}
 			return $item_data;
@@ -174,29 +177,41 @@ if ( ! class_exists( 'CAPFP_Cart' ) ) {
 
 		/**
 		 * Calculate custom fields prices and add to cart item total.
-		 *
-		 * @param WC_Cart $cart Cart object.
 		 */
-		public function calculate_custom_fields_prices( $cart ) {
+		public function calculate_custom_fields_prices( $cart_obj ) {
 			if ( is_admin() && ! defined( 'DOING_AJAX' ) ) {
 				return;
 			}
 
-			foreach ( $cart->get_cart() as $cart_item_key => $cart_item ) {
-				$additional_price = 0;
+			foreach ( $cart_obj->get_cart() as $cart_item_key => $cart_item ) {
+				$base_price = null;
+				if ( isset( $cart_item['capfp_original_base_price'] ) ) {
+					$base_price = floatval( $cart_item['capfp_original_base_price'] );
+				} else {
+					$product = wc_get_product( $cart_item['variation_id'] ? $cart_item['variation_id'] : $cart_item['product_id'] );
+					if ( $product ) {
+						$base_price = floatval( $product->get_price('edit') );
+                        if (isset($cart_obj->cart_contents[ $cart_item_key ])) { // Ensure item still exists
+						    $cart_obj->cart_contents[ $cart_item_key ]['capfp_original_base_price'] = $base_price;
+                        }
+					}
+				}
+
+				if ( $base_price === null ) {
+					continue;
+				}
+
+				$additional_price_to_add = 0;
 				if ( isset( $cart_item['capfp_custom_fields'] ) && is_array( $cart_item['capfp_custom_fields'] ) ) {
-					foreach ( $cart_item['capfp_custom_fields'] as $field_key => $field_data ) {
+					foreach ( $cart_item['capfp_custom_fields'] as $field_data ) {
 						if ( isset( $field_data['price'] ) && is_numeric( $field_data['price'] ) ) {
-							$additional_price += floatval( $field_data['price'] );
+							$additional_price_to_add += floatval( $field_data['price'] );
 						}
 					}
 				}
 
-				if ( $additional_price > 0 ) {
-					$original_price = $cart_item['data']->get_price( 'edit' ); // Get base price
-                    $new_price = $original_price + $additional_price;
-					$cart_item['data']->set_price( $new_price );
-				}
+				$new_price = $base_price + $additional_price_to_add;
+				$cart_item['data']->set_price( $new_price );
 			}
 		}
 	}

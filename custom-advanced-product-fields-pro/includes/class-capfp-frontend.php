@@ -15,6 +15,8 @@ if ( ! class_exists( 'CAPFP_Frontend' ) ) {
      */
     class CAPFP_Frontend {
 
+		private static $fields_displayed_this_request = false;
+
         /**
          * Constructor.
          */
@@ -29,6 +31,10 @@ if ( ! class_exists( 'CAPFP_Frontend' ) ) {
          * Display custom fields on the single product page.
          */
         public function display_custom_fields() {
+			if (self::$fields_displayed_this_request) {
+				return;
+			}
+
             global $product;
             if ( ! $product ) {
                 return;
@@ -76,21 +82,34 @@ if ( ! class_exists( 'CAPFP_Frontend' ) ) {
                         $max_attr = isset( $field_config['max'] ) && $field_config['max'] !== '' ? ' max="' . esc_attr( $field_config['max'] ) . '"' : '';
                         echo '<input type="number" id="' . esc_attr( $field_id_attr ) . '" name="' . esc_attr( $field_name_attr ) . '" class="input-text capfp-input"' . $min_attr . $max_attr . ' step="any" />';
                         break;
-                    case 'checkbox': // Assuming single checkbox representing the field itself with one primary option
+					case 'checkbox':
+						$checkbox_value = 'yes'; // Default value if no options
+						$display_option_label = '';
+
                         if ( ! empty( $field_config['options'] ) && is_array( $field_config['options'] ) ) {
-                            $option = $field_config['options'][0]; // Take the first option
-                            $option_id_attr = esc_attr( $field_id_attr . '_' . md5( $option['value'] ) ); // Ensure ID is valid
-                            echo '<input type="checkbox" id="' . esc_attr( $option_id_attr ) . '" name="' . esc_attr( $field_name_attr ) . '" value="' . esc_attr( $option['value'] ) . '" class="input-checkbox capfp-input" />';
-                            if ( ! empty( $option['label'] ) && $option['label'] !== $field_config['label'] ) {
-                                echo ' <label for="'. esc_attr( $option_id_attr ) .'" class="checkbox-label">' . esc_html( $option['label'] ) . '</label>';
+							$option = $field_config['options'][0]; // Use the first option for value and potential price
+							if (isset($option['value'])) {
+								$checkbox_value = $option['value'];
+							}
+							// Only display option label if it's different from the main field label
+							if (isset($option['label']) && $option['label'] !== $field_config['label']) {
+								$display_option_label = $option['label'];
                             }
-                            if ( ! empty( $option['price'] ) && floatval( $option['price'] ) > 0 ) {
-                                echo ' <span class="capfp-option-price"> (+ ' . wc_price( $option['price'] ) . ')</span>';
-                            }
+							$price = isset( $option['price'] ) ? floatval( $option['price'] ) : 0;
                         } else {
-                            // Fallback for a checkbox without defined options
-                            echo '<input type="checkbox" id="' . esc_attr( $field_id_attr ) . '" name="' . esc_attr( $field_name_attr ) . '" value="yes" class="input-checkbox capfp-input" />';
-                        }
+							// No options defined, it's a simple 'yes' value checkbox, no separate option label or price from option
+							$price = 0;
+						}
+
+						echo '<input type="checkbox" id="' . esc_attr( $field_id_attr ) . '" name="' . esc_attr( $field_name_attr ) . '" value="' . esc_attr( $checkbox_value ) . '" class="input-checkbox capfp-input" />';
+
+						if ( !empty($display_option_label) ) {
+							echo ' <label for="'. esc_attr( $field_id_attr ) .'" class="checkbox-label">' . esc_html( $display_option_label ) . '</label>';
+						}
+
+						if ( $price > 0 ) {
+							echo ' <span class="capfp-option-price"> (+ ' . wc_price( $price ) . ')</span>';
+						}
                         break;
                     case 'select':
                         if ( ! empty( $field_config['options'] ) && is_array( $field_config['options'] ) ) {
@@ -103,7 +122,7 @@ if ( ! class_exists( 'CAPFP_Frontend' ) ) {
                                 if ( ! empty( $option['price'] ) && floatval( $option['price'] ) > 0 ) {
                                     $price_suffix = ' (+ ' . wc_price( floatval( $option['price'] ) ) . ')';
                                 }
-                                echo '<option value="' . esc_attr( $option['value'] ) . '" data-price="' . esc_attr( !empty($option['price']) ? floatval($option['price']) : 0 ) . '">' . esc_html( $option['label'] ) . esc_html( $price_suffix ) . '</option>';
+                                echo '<option value="' . esc_attr( $option['value'] ) . '" data-price="' . esc_attr( !empty($option['price']) ? floatval($option['price']) : 0 ) . '">' . esc_html( $option['label'] ) . $price_suffix . '</option>'; // Removed esc_html() from $price_suffix
                             }
                             echo '</select>';
                         }
@@ -124,6 +143,8 @@ if ( ! class_exists( 'CAPFP_Frontend' ) ) {
                 'field_prefix'  => 'capfp_field_' // Prefix for input IDs/names
             ) );
             wp_enqueue_script( 'capfp-frontend-logic' );
+
+			self::$fields_displayed_this_request = true;
         }
 
         /**
@@ -147,7 +168,7 @@ if ( ! class_exists( 'CAPFP_Frontend' ) ) {
             if ( empty( $product_fields_config ) || ! is_array( $product_fields_config ) ) {
                 return $passed;
             }
-            
+
             $submitted_values_map = array();
             if (isset($_POST['capfp_field']) && is_array($_POST['capfp_field'])) {
                 foreach (wc_clean(wp_unslash($_POST['capfp_field'])) as $unique_key => $value) {
@@ -165,7 +186,7 @@ if ( ! class_exists( 'CAPFP_Frontend' ) ) {
                 if ( ! $is_conditionally_visible ) {
                     continue;
                 }
-                
+
                 if ( $is_field_required && ( is_null( $submitted_value_for_current_field ) || $submitted_value_for_current_field === '' ) ) {
                     wc_add_notice( sprintf( __( '%s is a required field.', 'capfp' ), esc_html( $field_config['label'] ) ), 'error' );
                     $passed = false;
@@ -202,7 +223,7 @@ if ( ! class_exists( 'CAPFP_Frontend' ) ) {
                                         break;
                                     }
                                 }
-                            } elseif ($field_config['type'] === 'checkbox' && $submitted_value_for_current_field === "yes" && empty($field_config['options'])) { 
+                            } elseif ($field_config['type'] === 'checkbox' && $submitted_value_for_current_field === "yes" && empty($field_config['options'])) {
                                 $valid_option_found = true;
                             }
                             if ( ! $valid_option_found ) {
@@ -225,6 +246,8 @@ if ( ! class_exists( 'CAPFP_Frontend' ) ) {
          * @return bool
          */
         public function is_field_conditionally_visible( $field_config, $submitted_values_map, $all_product_fields ) {
+            // Note: This public visibility is a temporary change to allow CAPFP_Cart to call it.
+            // Consider refactoring to a shared helper or a different approach for inter-class dependencies.
             if ( ! isset( $field_config['conditions'] ) || empty( $field_config['conditions'] ) ) {
                 return true;
             }
